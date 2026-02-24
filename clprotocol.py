@@ -2,7 +2,7 @@ import os
 import time
 from pymavlink import mavutil
 
-LOG_NUMBER = 1                 # change this
+LOG_NUMBER = 130                 # change this
 OUTPUT_FILE = "log1.bin"
 PORT = "/dev/ttyACM0"
 BAUD = 115200

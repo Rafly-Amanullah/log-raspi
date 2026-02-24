@@ -111,13 +111,14 @@ def process_csv_folder(input_folder, output_folder, schemas):
             print(f"[Sukses mengkonversi CSV->BIN] {csv_path} -> {bin_path}")
             csv_to_bin(csv_path, bin_path, schemas)
             
+
 def new_process_csv_folder(input_folder, output_folder, schemas):
     csv_files = [f for f in os.listdir(input_folder) if f.lower().endswith(".csv")]
     for filename in csv_files:
-        bin_path = os.path.join(input_folder, filename)
-        print(bin_path)
-
-
+        csv_path = os.path.join(input_folder, filename)
+        bin_name = os.path.splitext(filename)[0] + ".bin"
+        bin_path = os.path.join(output_folder, bin_name)
+        csv_to_bin(csv_path, bin_path, schemas)
 
 
 def process_bin_folder(input_folder, output_folder, schemas, log=None):

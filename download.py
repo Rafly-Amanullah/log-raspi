@@ -3,6 +3,9 @@ from datetime import datetime, timezone
 from serial.serialutil import SerialException
 import time
 import os
+from pathlib import Path
+import subprocess
+import sys
 
 port = "/dev/ttyACM0"
 baud = 115200
@@ -58,12 +61,53 @@ def get_latest_log_info(mav):
             print(f"Newest log: {newest_log} at {log_dates[newest_log]}")
             return newest_log
 
+def get_logs_amounts(mav):
+    mav.mav.log_request_list_send(
+        mav.target_system,
+        mav.target_component,
+        0,
+        0xFFFF
+    )
+    log_date = {}
+    expected = None
+    retry_interval = 3
+    last_request = 0
+
+    while True:
+        if time.time()-last_request>retry_interval:
+            print("Request log list")
+            mav.mav.log_request_list_send(
+                mav.target_system,
+                mav.target_component,
+                0,
+                0xFFFF
+            )
+            last_request = time.time()
+        
+        msg = mav.recv_match(type = "LOG_ENTRY", timeout = 1)
+        if not msg:
+            continue
+        if expected is None:
+            expected = msg.num_logs
+            print (f"Expecting {expected} amount of logs")
+        utc_time = datetime.fromtimestamp(msg.time_utc, timezone.utc)
+        local_time = utc_time.astimezone()
+        log_date[msg.id] = local_time
+
+        if expected and len(log_date) >= expected:
+            break
+    sorted_logs = sorted(log_date.items(), key = lambda x:x[1], reverse=True)
+    return sorted_logs
+
         
 def download_log(mav, log_num):
+    path = Path.cwd()/"bin"
+    path.mkdir(exist_ok=True)
     filename = f"{log_num:08d}.BIN"
-    print(f"Downloading log {log_num} as {filename}")
+    file_path = path / filename
+    #print(f"Downloading log {log_num} as {filename}")
 
-    f = open(filename,"wb")
+    f = open(file_path,"wb")
 
     mav.mav.log_request_data_send(
         mav.target_system,
@@ -104,23 +148,38 @@ def download_log(mav, log_num):
             break
     f.close()
     elapsed = time.perf_counter() - start_time
-    size = os.path.getsize(filename)
-    print (f"Saved {size} bytes in {elapsed:.1f}s ({size/(1000*elapsed):.1f} kB/s)")
+    size = os.path.getsize(file_path)
+    print (f"Saved {size} bytes in {elapsed:.1f}s ({size/(1000*elapsed):.1f} kB/s) at {file_path}")
 
 retry_delay = 2
 
-def main():
+def download_batch(mav,count):
+    sorted_logs = get_logs_amounts(mav)
+    count = int(count)
+    if not sorted_logs:
+        print("No logs available")
+        return
+    amount_todownload = sorted_logs[:count]
+    print(f"Requesting {len(amount_todownload)} amount of latest logs")
+    for log_id, log_time, in amount_todownload:
+        print(f"Downloading Log {log_id}: {log_time}")
+        download_log(mav,log_id)
+        #time.sleep(retry_delay)
+
+
+def main(count):
     while True:
         mav = None
         total_start = time.perf_counter()
 
         try:
             mav = connect()
-            log_id = get_latest_log_info(mav)
-            download_log(mav, log_id)
+            #log_id = get_latest_log_info(mav)
+            download_batch(mav, count)
 
             total_elapsed = time.perf_counter() - total_start
-            print(f"Total program runtime: {total_elapsed:.2f} seconds")
+            str_elapsed = str(total_elapsed)
+            #print(f"Total program runtime: {total_elapsed:.2f} seconds")
 
             break  # success → exit loop
 
@@ -138,6 +197,10 @@ def main():
                 except Exception:
                     pass
         time.sleep(retry_delay)
+    subprocess.run(["/home/pi/Documents/enviro/bin/python","/home/pi/Documents/terralog-raspi/logger-cli.py","bin",str_elapsed])
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 1:
+        print("Usage: download.py <amount of files>")
+        sys.exit()
+    main(sys.argv[1])

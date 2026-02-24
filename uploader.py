@@ -5,14 +5,9 @@ import socket
 from cryptography.fernet import Fernet
 import tempfile
 import time
+from pathlib import Path
 
 APP_NAME = "TerraLog"
-
-def resource_path(filename: str) -> str:
-    """Get resource whether running as script or PyInstaller exe."""
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, filename)
-    return os.path.join(os.path.abspath("."), filename)
 
 import os
 import tempfile
@@ -22,7 +17,9 @@ from pydrive2.drive import GoogleDrive
 
 def get_drive():
     gauth = GoogleAuth()
-    CRED_ENC = resource_path("credentials.enc")
+    client_file = Path.cwd() / "client_secrets.json"
+    gauth.LoadClientConfigFile(client_file)
+    CRED_ENC = Path.cwd() / "credentials.enc"
     FERNET_KEY = b"jptpGskWrHdUq3Vvi8DOw3pQQDBCtOfCrpNC80DwI7Q="
     #New fernet = jptpGskWrHdUq3Vvi8DOw3pQQDBCtOfCrpNC80DwI7Q=
     #Default fernet = DZR2E60GV-cn0XWTuX61QX9JyTy8ZNp5qXHlHWtg614=
@@ -48,7 +45,7 @@ def get_drive():
 
         if gauth.credentials is None:
             # First-time setup (requires internet)
-            print("Melakukan autentikasi Google Drive...")
+            print("Authenticating Google Drive")
             gauth.LocalWebserverAuth()
         else:
             try:
@@ -58,12 +55,12 @@ def get_drive():
                 else:
                     gauth.Authorize()
             except Exception as e:
-                print(f"Peringatan: Tidak dapat memperbarui token (mungkin offline): {e}")
+                print(f"Error: {e}")
                 # Still use existing credentials (will fail on upload if offline)
                 try:
                     gauth.Authorize()
                 except Exception:
-                    print("Peringatan: Tidak dapat otorisasi ulang — melanjutkan dengan mode offline.")
+                    print("Authorize failed!")
 
         # --- Step 4: Save (and re-encrypt) credentials back to .enc ---
         with tempfile.NamedTemporaryFile(delete=False) as tmp_out:
@@ -152,7 +149,7 @@ def run_upload(folder, drive_folder_id):
                 existing_files = []
 
             if existing_files:
-                print(f"Melewati file '{filename}' — sudah ada di '{rel_path or '(root)'}'")
+                print(f"File skipped'{filename}' — Already exist in '{rel_path or '(root)'}'")
                 continue
 
             # Retry upload for up to 5 minutes
@@ -165,16 +162,16 @@ def run_upload(folder, drive_folder_id):
                     })
                     gfile.SetContentFile(file_path)
                     gfile.Upload()
-                    print(f"Terupload: {filename} -> {rel_path or '(root)'}")
+                    print(f"Uploaded: {filename} -> {rel_path or '(root)'}")
                     break
 
                 except Exception as e:
                     elapsed = time.time() - start_time
                     if elapsed >= 300:  # 5 minutes
-                        print(f"Gagal upload {filename} setelah 5 menit. Error: {e}")
-                        raise ConnectionError("Upload dihentikan karena koneksi buruk.")
+                        print(f"Upload failed {filename} after 5 minutes. Error: {e}")
+                        raise ConnectionError("Upload stopped, bad connection.")
                     else:
-                        print(f"Gagal mengunggah '{filename}', mencoba lagi dalam 10 detik... ({int(elapsed)}s)")
+                        print(f"Failed to upload '{filename}', trying again in 10 seconds... ({int(elapsed)}s)")
                         time.sleep(10)
 
-    print("Semua upload selesai!")
+    print("All Upload Complete")

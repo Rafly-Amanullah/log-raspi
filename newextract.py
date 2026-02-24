@@ -75,6 +75,7 @@ def extract(folder_path: str, tz: int, downsample_val: int):
                             timezone(timedelta(hours=tz))
                         )
                         date_str = gps_datetime.strftime("%Y-%m-%d")
+                        date_file = gps_datetime.strftime("%d%m%Y")
 
                 # ---------- MSG filter ----------
                 if mtype == "MSG":
@@ -156,6 +157,7 @@ def extract(folder_path: str, tz: int, downsample_val: int):
                 "file": filename,
                 "sysid": sysid_thismav,
                 "gps_time": date_str,
+                "file_time": date_file,
                 "data": merged,
             }
         )

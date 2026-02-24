@@ -3,8 +3,9 @@ import sys
 from pathlib import Path
 import time
 
-def test(input_folder):
+def test(input_folder,time_prev=0):
     start = time.perf_counter()
+    time_prev = int(float(time_prev))
     schema = {
 
         "GPS": [
@@ -60,7 +61,7 @@ def test(input_folder):
             ("ThO", "f"),
         ]
     }
-    print("Running...")
+    print("Running main process...")
     input_folder = Path.cwd() / input_folder
     tz = 8
 
@@ -76,9 +77,10 @@ def test(input_folder):
         base = Path(item["file"]).stem
         sysid = item["sysid"] or "Unknown"
         date = str(item["gps_time"]) or "Unknown"
+        date_file = str(item["file_time"]) or "Unknown"
         
-        out_name = f"{base} - SYSID{sysid}.csv"
-        out_path = input_folder/ "csv" / date / f"D16-{sysid}"
+        out_name = f"D16-{sysid}_{base}_{date_file}.csv"
+        out_path = input_folder/ "output" / "csv" / date / f"D16-{sysid}"
         out_path.mkdir(parents=True, exist_ok=True)
         output = out_path/out_name
 
@@ -87,28 +89,34 @@ def test(input_folder):
 
         from compressor import new_process_csv_folder
         print(f"Making BIN files from {output}")
-        out_bin = input_folder/"bin"/date/f"D16-{sysid}"
+        out_bin = input_folder/ "output" / "bin" / date / f"D16-{sysid}"
         out_bin.mkdir(parents=True, exist_ok=True)
-        bin_name = f"{base} - SYSID{sysid}.bin"
+        bin_name = f"D16-{sysid}_{base}_{date_file}.bin"
         bin_output = out_bin/bin_name
         new_process_csv_folder(out_path,out_bin,schema)
         print(f"Bin file saved into {bin_output}")
-    total_elapsed = time.perf_counter() - start
+
+    output_folder = Path.cwd() / "bin" / "output"
+    _process_upload(output_folder)
+    total_elapsed = time.perf_counter() - start + time_prev
     print("-----------------------------------------------")
     print(f"Program runtime = {total_elapsed} Seconds")
 
 
 def _process_upload(output_folder):
-    from uploader import run_upload
-    print("Menjalankan proses upload...")
+    from newupload import run_upload
+    print("Running upload process...")
     try:
         run_upload(output_folder,"1uEJtnmgQBIxx8MbXkSFEUuAuHwTEsOV9")
         #Default: 1LhMM5Co1vtm0BExLjakGUEkh72-jDguI
     except Exception as e:
-        print(f"[Tidak ada internet] Upload gagal dan dihentikan. Upload ulang melalui tab 'Upload' apabila sudah ada internet. Error: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python test.py <input_folder>")
+        print("Usage: logger-cli.py <input_folder>")
         sys.exit(1)
-    test(sys.argv[1])
+    elif len(sys.argv) < 3:
+        test(sys.argv[1])
+    else:
+        test(sys.argv[1],sys.argv[2])
