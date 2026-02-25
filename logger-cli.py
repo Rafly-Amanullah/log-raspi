@@ -2,6 +2,8 @@
 import sys
 from pathlib import Path
 import time
+import shutil
+import os
 
 def test(input_folder,time_prev=0):
     start = time.perf_counter()
@@ -62,7 +64,8 @@ def test(input_folder,time_prev=0):
         ]
     }
     print("Running main process...")
-    input_folder = Path.cwd() / input_folder
+    input_folder = Path(__file__).resolve().parent/input_folder
+    destination = Path(__file__).resolve().parent.parent/"TERALOG"
     tz = 8
 
     from newextract import extract
@@ -85,7 +88,8 @@ def test(input_folder,time_prev=0):
         output = out_path/out_name
 
         df.to_csv(output, index=False)
-        print(f"Csv saved into {output}")
+        shutil.copy(output,destination)
+        print(f"Csv saved into {output} and {destination}")
 
         from compressor import new_process_csv_folder
         print(f"Making BIN files from {output}")
@@ -95,10 +99,7 @@ def test(input_folder,time_prev=0):
         bin_output = out_bin/bin_name
         new_process_csv_folder(out_path,out_bin,schema)
         print(f"Bin file saved into {bin_output}")
-
-    output_folder = Path.cwd() / "bin" / "output"
-    _process_upload(output_folder)
-    total_elapsed = time.perf_counter() - start + time_prev
+    total_elapsed = time.perf_counter() - start + time_prev + 30 #30 being the delay from USB detection to connecting
     print("-----------------------------------------------")
     print(f"Program runtime = {total_elapsed} Seconds")
 

@@ -89,10 +89,6 @@ def extract(folder_path: str, tz: int, downsample_val: int):
         finally:
             mav.close()
 
-        # ===============================
-        # POST PROCESS (restored features)
-        # ===============================
-
         dfs = {k: pd.DataFrame(v) for k, v in buffers.items()}
 
         # ---------- BAT split ----------

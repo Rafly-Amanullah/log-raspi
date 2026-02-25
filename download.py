@@ -101,7 +101,7 @@ def get_logs_amounts(mav):
 
         
 def download_log(mav, log_num):
-    path = Path.cwd()/"bin"
+    path = Path(__file__).resolve().parent/"bin"
     path.mkdir(exist_ok=True)
     filename = f"{log_num:08d}.BIN"
     file_path = path / filename
@@ -197,7 +197,7 @@ def main(count):
                 except Exception:
                     pass
         time.sleep(retry_delay)
-    subprocess.run(["/home/pi/Documents/enviro/bin/python","/home/pi/Documents/terralog-raspi/logger-cli.py","bin",str_elapsed])
+    subprocess.run(["/home/pi/Documents/enviro/bin/python","-u","/home/pi/Documents/terralog-raspi/logger-cli.py","bin",str_elapsed])
 
 if __name__ == "__main__":
     if len(sys.argv) < 1:

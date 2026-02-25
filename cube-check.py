@@ -6,14 +6,15 @@ def cube_connect():
     #result = subprocess.run(["lsusb"], capture_output=True, text=True)
     return os.path.exists("/dev/ttyACM0")
 
-count = 3
+count = str(3)
 was_connected = False
 
 while True:
     connected = cube_connect()
     if connected and not was_connected:
         print("Cube Connected")
-        subprocess.run(["/home/pi/Documents/enviro/bin/python","/home/pi/Documents/terralog-raspi/download.py",count])
+        time.sleep(30)
+        subprocess.run(["/home/pi/Documents/enviro/bin/python", "-u", "/home/pi/Documents/terralog-raspi/download.py",count])
     elif not connected and was_connected:
         print("Cube Disconnected")
     elif not connected:
