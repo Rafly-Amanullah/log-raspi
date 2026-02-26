@@ -61,6 +61,9 @@ def get_latest_log_info(mav):
             print(f"Newest log: {newest_log} at {log_dates[newest_log]}")
             return newest_log
 
+
+
+
 def get_logs_amounts(mav):
     mav.mav.log_request_list_send(
         mav.target_system,
@@ -166,8 +169,24 @@ def download_batch(mav,count):
         download_log(mav,log_id)
         #time.sleep(retry_delay)
 
+def get_latest_day(mav):
+    sorted_logs = get_logs_amounts(mav)
+    if not sorted_logs:
+        print("No logs found")
+        return
+    newest_date = sorted_logs[0][1].date()
+    print(f"Downloading all logs from date: {newest_date}")
+    count = 0
+    for log_id, log_time in sorted_logs:
+        if log_time.date() == newest_date:
+            print(f"Downloading log {log_id}: ({log_time})")
+            download_log(mav,log_id)
+            count += 1
+        else:
+            break
+    print(f"Finished downloading {count} logs from {newest_date}")
 
-def main(count):
+def main():
     while True:
         mav = None
         total_start = time.perf_counter()
@@ -175,7 +194,7 @@ def main(count):
         try:
             mav = connect()
             #log_id = get_latest_log_info(mav)
-            download_batch(mav, count)
+            get_latest_day(mav)
 
             total_elapsed = time.perf_counter() - total_start
             str_elapsed = str(total_elapsed)
@@ -200,7 +219,4 @@ def main(count):
     subprocess.run(["/home/pi/Documents/enviro/bin/python","-u","/home/pi/Documents/terralog-raspi/logger-cli.py","bin",str_elapsed])
 
 if __name__ == "__main__":
-    if len(sys.argv) < 1:
-        print("Usage: download.py <amount of files>")
-        sys.exit()
-    main(sys.argv[1])
+    main()

@@ -14,7 +14,7 @@ while True:
     if connected and not was_connected:
         print("Cube Connected")
         time.sleep(30)
-        subprocess.run(["/home/pi/Documents/enviro/bin/python", "-u", "/home/pi/Documents/terralog-raspi/download.py",count])
+        subprocess.run(["/home/pi/Documents/enviro/bin/python", "-u", "/home/pi/Documents/terralog-raspi/download.py"])
     elif not connected and was_connected:
         print("Cube Disconnected")
     elif not connected:
