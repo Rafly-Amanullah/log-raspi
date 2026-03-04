@@ -186,6 +186,32 @@ def get_latest_day(mav):
             break
     print(f"Finished downloading {count} logs from {newest_date}")
 
+def get_latest_week(mav):
+    sorted_logs = get_logs_amounts(mav)
+    if not sorted_logs:
+        print("No logs found")
+        return
+    current_date = sorted_logs[0][1].date()
+    print (f"Downloading a week worth of logs starting from {current_date}")
+    count = 0
+    week = 1
+    for log_id, log_time in sorted_logs:
+        if log_time.date() != current_date:
+            print("Changing date...")
+            current_date = log_time.date()
+            print(f"Date changed into {current_date}")
+            week += 1
+            if week > 7:
+                week = week-1
+                break
+        if log_time.date() == current_date:
+            print(f"Downloading log {log_id}: ({log_time})")
+            download_log(mav,log_id)
+            count+=1
+        else:
+            break
+    print (f"Finisihed downloading {count} amount of logs from {week} weeks")
+
 def main():
     while True:
         mav = None
