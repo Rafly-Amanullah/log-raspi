@@ -103,7 +103,7 @@ def test(input_folder,time_prev=0):
     print("-----------------------------------------------")
     print(f"Program runtime = {total_elapsed} Seconds")
 
-
+'''
 def _process_upload(output_folder):
     from newupload import run_upload
     print("Running upload process...")
@@ -112,6 +112,7 @@ def _process_upload(output_folder):
         #Default: 1LhMM5Co1vtm0BExLjakGUEkh72-jDguI
     except Exception as e:
         print(f"Error: {e}")
+'''
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

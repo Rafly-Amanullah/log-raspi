@@ -80,7 +80,12 @@ def extract(folder_path: str, tz: int, downsample_val: int):
                 # ---------- MSG filter ----------
                 if mtype == "MSG":
                     text = dct.get("Message", "")
-                    if not re.search(r"Mission:\s*\d+\s+RepeatServo", text):
+
+                    m = re.search(r"Mission:\s*(\d+)\s+(RepeatServo)", text)
+                    if m:
+                        dct["Mission"] = int(m.group(1))
+                        dct["Action"] = m.group(2)
+                    else:
                         continue
 
                 if mtype in buffers:
@@ -89,7 +94,30 @@ def extract(folder_path: str, tz: int, downsample_val: int):
         finally:
             mav.close()
 
+        # ---------- DataFrames ----------
         dfs = {k: pd.DataFrame(v) for k, v in buffers.items()}
+
+        if not dfs["CMD"].empty and "Prm3" in dfs["CMD"].columns:
+            dfs["CMD"] = dfs["CMD"][dfs["CMD"]["Prm3"] == 1]
+
+        # ---------- Keep columns (from old script) ----------
+        keep_cols = {
+            "GPS": ["mavpackettype", "TimeUS", "Status", "GMS", "GWk", "Spd"],
+            "POS": ["mavpackettype", "TimeUS", "Lat", "Lng", "RelHomeAlt"],
+            "RCOU": ["mavpackettype", "TimeUS", "C11"],
+            "BAT": ["mavpackettype", "Inst", "TimeUS", "Curr"],
+            "MSG": ["mavpackettype", "TimeUS", "Mission", "Action"],
+            "CMD": ["mavpackettype", "TimeUS", "Prm3"],
+            "CTUN": ["mavpackettype", "TimeUS", "ThO"],
+        }
+
+        # apply filtering
+        for key, df in dfs.items():
+            if df.empty:
+                continue
+            cols = keep_cols.get(key)
+            if cols:
+                dfs[key] = df[[c for c in cols if c in df.columns]]
 
         # ---------- BAT split ----------
         bat_outputs = []
@@ -114,8 +142,8 @@ def extract(folder_path: str, tz: int, downsample_val: int):
                 direction="nearest",
             )
 
-            pos_high = pos_df[pos_df["C11"] > 1900]
-            pos_low = pos_df[pos_df["C11"] <= 1900]
+            pos_high = pos_df[pos_df["C11"] > 1800]
+            pos_low = pos_df[pos_df["C11"] <= 1800]
 
             pos_low = downsample_df(pos_low, downsample_val)
 
@@ -125,20 +153,23 @@ def extract(folder_path: str, tz: int, downsample_val: int):
         else:
             pos_df = downsample_df(pos_df, downsample_val)
 
-        # ---------- RCOU conditional downsample ----------
+        # RCOU conditional downsample
         if not rcou_df.empty and "C11" in rcou_df:
-            rcou_high = rcou_df[rcou_df["C11"] > 1900]
-            rcou_low = rcou_df[rcou_df["C11"] <= 1900]
+            rcou_high = rcou_df[rcou_df["C11"] > 1800]
+            rcou_low = rcou_df[rcou_df["C11"] <= 1800]
             rcou_low = downsample_df(rcou_low, downsample_val)
             rcou_df = pd.concat([rcou_high, rcou_low]).sort_values("TimeUS")
 
-        # ---------- Downsample others ----------
-        other_types = ["GPS", "CMD", "MSG", "MODE", "CTUN"]
+        # Downsample others
+        other_types = ["GPS", "MSG", "MODE", "CTUN"]
         others = [
             downsample_df(dfs[t], downsample_val)
             for t in other_types
             if not dfs[t].empty
         ]
+        #Keep whole CMD
+        if not dfs["CMD"].empty:
+            others.append(dfs["CMD"])
 
         merged_parts = others + bat_outputs
         if not rcou_df.empty:
@@ -147,6 +178,30 @@ def extract(folder_path: str, tz: int, downsample_val: int):
             merged_parts.append(pos_df)
 
         merged = pd.concat(merged_parts, ignore_index=True) if merged_parts else pd.DataFrame()
+        # ---------- Enforce column order (match old CSV format) ----------
+        final_cols = [
+            "mavpackettype",
+            "TimeUS",
+            "Status",
+            "GMS",
+            "GWk",
+            "Spd",
+            "Curr",
+            "Prm3",
+            "Mission",
+            "Action",
+            "Mode",
+            "ModeNum",
+            "Rsn",
+            "ThO",
+            "C11",
+            "Lat",
+            "Lng",
+            "RelHomeAlt",
+        ]
+
+        if not merged.empty:
+            merged = merged.reindex(columns=final_cols)
 
         results.append(
             {

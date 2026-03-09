@@ -103,7 +103,7 @@ def get_logs_amounts(mav):
     return sorted_logs
 
         
-def download_log(mav, log_num):
+def old_download_log(mav, log_num):
     path = Path(__file__).resolve().parent/"bin"
     path.mkdir(exist_ok=True)
     filename = f"{log_num:08d}.BIN"
@@ -111,7 +111,6 @@ def download_log(mav, log_num):
     #print(f"Downloading log {log_num} as {filename}")
 
     f = open(file_path,"wb")
-
     mav.mav.log_request_data_send(
         mav.target_system,
         mav.target_component,
@@ -126,9 +125,12 @@ def download_log(mav, log_num):
 
     while True:
         msg = mav.recv_match(blocking=True, timeout=1)
+        if time.perf_counter() - start_time > 60:
+            print("Too slow lol!")
+            break
 
         if msg is None:
-            if time.time() - last_packet_time > log_timeout:
+            if time.time() - last_packet_time > 60:
                 print("Timeout waiting for data")
                 break
             continue
@@ -139,6 +141,7 @@ def download_log(mav, log_num):
 
         if msg.ofs != download_ofs:
             f.seek(msg.ofs)
+            print("msg.ofs != download_ofs")
             download_ofs=msg.ofs
         
         if msg.count > 0:
@@ -149,10 +152,73 @@ def download_log(mav, log_num):
         if msg.count==0 or msg.count < 90:
             print("Download finished")
             break
+
     f.close()
     elapsed = time.perf_counter() - start_time
     size = os.path.getsize(file_path)
     print (f"Saved {size} bytes in {elapsed:.1f}s ({size/(1000*elapsed):.1f} kB/s) at {file_path}")
+
+def download_log(mav, log_num):
+    path = Path(__file__).resolve().parent/"bin"
+    path.mkdir(exist_ok=True)
+    filename = f"{log_num:08d}.BIN"
+    file_path = path / filename
+    #print(f"Downloading log {log_num} as {filename}")
+    retries = 3
+    for attempts in range(1, retries+1):
+        print(f"Download attempt {attempts}")
+        f = open(file_path,"wb")
+        mav.mav.log_request_data_send(
+            mav.target_system,
+            mav.target_component,
+            log_num,
+            0,
+            0xFFFFFFFF
+        )
+
+        download_ofs = 0
+        last_packet_time = time.time()
+        start_time = time.perf_counter()
+        success = False
+
+        while True:
+            msg = mav.recv_match(blocking=True, timeout=1)
+            if time.perf_counter() - start_time > 60:
+                print("Too slow lol!")
+                break
+
+            if msg is None:
+                if time.time() - last_packet_time > 60:
+                    print("Timeout waiting for data")
+                    break
+                continue
+            if msg.get_type() != "LOG_DATA":
+                continue
+
+            last_packet_time = time.time()
+
+            if msg.ofs != download_ofs:
+                f.seek(msg.ofs)
+                print("msg.ofs != download_ofs")
+                download_ofs=msg.ofs
+            
+            if msg.count > 0:
+                s = bytearray(msg.data[:msg.count])
+                f.write(s)
+                download_ofs += msg.count
+            
+            if msg.count==0 or msg.count < 90:
+                print("Download finished")
+                success = True
+                break
+
+        f.close()
+        if success:
+            elapsed = time.perf_counter() - start_time
+            size = os.path.getsize(file_path)
+            print (f"Saved {size} bytes in {elapsed:.1f}s ({size/(1000*elapsed):.1f} kB/s) at {file_path}")
+            return
+        print("Restarting download...")
 
 retry_delay = 2
 
@@ -220,11 +286,11 @@ def main():
         try:
             mav = connect()
             #log_id = get_latest_log_info(mav)
-            get_latest_day(mav)
+            #get_latest_week(mav)
 
             total_elapsed = time.perf_counter() - total_start
             str_elapsed = str(total_elapsed)
-            #print(f"Total program runtime: {total_elapsed:.2f} seconds")
+            print(f"Total download runtime: {total_elapsed:.2f} seconds")
 
             break  # success → exit loop
 
