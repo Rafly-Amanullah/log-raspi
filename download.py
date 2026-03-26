@@ -125,12 +125,12 @@ def old_download_log(mav, log_num):
 
     while True:
         msg = mav.recv_match(blocking=True, timeout=1)
-        if time.perf_counter() - start_time > 60:
-            print("Too slow lol!")
+        if time.perf_counter() - start_time > 90:
+            print("Download too slow!")
             break
 
         if msg is None:
-            if time.time() - last_packet_time > 60:
+            if time.time() - last_packet_time > 90:
                 print("Timeout waiting for data")
                 break
             continue
@@ -183,12 +183,12 @@ def download_log(mav, log_num):
 
         while True:
             msg = mav.recv_match(blocking=True, timeout=1)
-            if time.perf_counter() - start_time > 60:
-                print("Too slow lol!")
+            if time.perf_counter() - start_time > 90:
+                print("Download too slow!")
                 break
 
             if msg is None:
-                if time.time() - last_packet_time > 60:
+                if time.time() - last_packet_time > 90:
                     print("Timeout waiting for data")
                     break
                 continue
@@ -287,6 +287,7 @@ def main():
             mav = connect()
             #log_id = get_latest_log_info(mav)
             #get_latest_week(mav)
+            download_log(mav, 221)
 
             total_elapsed = time.perf_counter() - total_start
             str_elapsed = str(total_elapsed)
@@ -308,7 +309,7 @@ def main():
                 except Exception:
                     pass
         time.sleep(retry_delay)
-    subprocess.run(["/home/pi/Documents/enviro/bin/python","-u","/home/pi/Documents/terralog-raspi/logger-cli.py","bin",str_elapsed])
+    #subprocess.run(["/home/pi/Documents/enviro/bin/python","-u","/home/pi/Documents/terralog-raspi/logger-cli.py","bin",str_elapsed])
 
 if __name__ == "__main__":
     main()
